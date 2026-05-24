@@ -1,5 +1,7 @@
 compile:
-	hetu compile src/plugin.ht build/plugin.out; cp build/plugin.out example/assets/bytecode/
+	mkdir -p build; \
+	hetu compile src/plugin.ht build/plugin.out; \
+	cp build/plugin.out example/assets/bytecode/
 
 archive:
 	mkdir -p build/archive; \

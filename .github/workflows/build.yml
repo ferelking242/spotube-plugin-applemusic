@@ -1,5 +1,10 @@
 name: Plugin Build
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
   workflow_dispatch:
     inputs:
       version:
@@ -39,11 +44,12 @@ jobs:
         with:
           path: build/plugin.smplug
 
-      - name: Upload to release (${{ github.event.inputs.version }})
+      - name: Upload to release (${{ github.event.inputs.version || 'continuous' }})
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.event.inputs.version }}
+          tag: ${{ github.event.inputs.version || 'continuous' }}
+          prerelease: ${{ github.event_name == 'push' }}
           omitBodyDuringUpdate: true
           omitNameDuringUpdate: true
           omitPrereleaseDuringUpdate: true
