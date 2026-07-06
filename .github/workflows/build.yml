@@ -1,17 +1,16 @@
-name: Plugin Build
+name: Build & Publish Plugin
+
 on:
   push:
-    branches: [main]
-    paths-ignore:
-      - 'README.md'
-      - '.gitignore'
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       version:
         type: string
-        description: 'Version (x.x.x) — leave blank to use plugin.json'
+        description: "Version (x.x.x)"
         required: false
-        default: ''
+        default: "continuous"
 
 permissions:
   contents: write
@@ -21,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -29,36 +28,39 @@ jobs:
           channel: stable
           flutter-version: 3.35.2
 
-      - name: Install dependencies
+      - name: Install Hetu tools
         run: dart pub global activate hetu_script_dev_tools
 
-      - name: Resolve version
-        id: ver
-        run: |
-          V="${{ github.event.inputs.version }}"
-          if [ -z "$V" ]; then V="$(jq -r .version plugin.json)"; fi
-          echo "version=$V" >> "$GITHUB_OUTPUT"
-          echo "Releasing version: $V"
+      - name: Build plugin
+        run: make compile
 
-      - name: Run build
-        run: make
-
-      - name: Archive plugin
+      - name: Archive plugin (.smplug)
         run: make archive
-        shell: bash
 
-      - name: Upload plugin archive
-        uses: actions/upload-artifact@v7
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "value=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=continuous" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: plugin
           path: build/plugin.smplug
 
-      - name: Upload to release (${{ steps.ver.outputs.version }})
+      - name: Publish to GitHub Release
         uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ steps.ver.outputs.version }}
+          tag: ${{ steps.tag.outputs.value }}
+          name: ${{ steps.tag.outputs.value }}
           omitBodyDuringUpdate: true
           omitNameDuringUpdate: true
           omitPrereleaseDuringUpdate: true
           allowUpdates: true
           artifacts: build/plugin.smplug
+          artifactName: plugin.smplug
